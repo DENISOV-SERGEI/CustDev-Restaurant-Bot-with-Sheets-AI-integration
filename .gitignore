@@ -1,0 +1,22 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Virtual environment ---
+.venv/
+env/
+venv/
+
+# --- IDE files ---
+.idea/
+.vscode/
+
+# --- Credentials ---
+.env
+service_account.json
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
