@@ -1,4 +1,5 @@
 import os
+import json
 import random
 from datetime import datetime, time, timedelta
 from dotenv import load_dotenv
@@ -13,11 +14,26 @@ from telegram.ext import (
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 SHEET_URL = os.getenv("SHEET_URL")
-SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
 # === Настройки Google Sheets ===
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
-creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scope)
+
+# Пытаемся загрузить JSON из переменной окружения (для Render / Railway)
+service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+
+if service_account_json:
+    try:
+        service_account_info = json.loads(service_account_json)
+        creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
+    except json.JSONDecodeError:
+        raise ValueError("❌ Ошибка: переменная GOOGLE_SERVICE_ACCOUNT_JSON содержит некорректный JSON.")
+else:
+    # Если запускается локально — используем файл
+    SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT")
+    if not SERVICE_ACCOUNT_FILE:
+        raise FileNotFoundError("❌ Не найден файл или переменная GOOGLE_SERVICE_ACCOUNT_JSON.")
+    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scope)
+
 client = gspread.authorize(creds)
 sheet = client.open_by_url(SHEET_URL).sheet1
 
@@ -71,7 +87,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["step"] = 0
     chat = update.effective_chat
 
-    # Если пользователь пришёл по ссылке с параметром
     if context.args and context.args[0] == "interview":
         welcome_text = (
             'Приветствуем в ресторане "La Bella"! 🍝\n'
@@ -85,7 +100,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'За участие — приятный бонус 🎁\n\n'
         )
 
-    # Сразу начинаем опрос
     await chat.send_message(welcome_text + QUESTIONS[0])
 
 
@@ -106,7 +120,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     step = context.user_data.get("step", 0)
     text = update.message.text.strip()
 
-    # === Шаг 0: имя пользователя ===
     if step == 0:
         context.user_data["Имя"] = text
         context.user_data["UserID"] = update.message.from_user.id
@@ -117,7 +130,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Приятно познакомиться, {text}! {QUESTIONS[1]}")
         return
 
-    # === Список полей таблицы (соответствует структуре) ===
     fields = [
         "Последний визит",
         "Причина визита",
@@ -132,27 +144,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[fields[step - 1]] = answer
         context.user_data["step"] += 1
 
-    # === Следующий вопрос ===
     if context.user_data["step"] < len(QUESTIONS):
         next_q = QUESTIONS[context.user_data["step"]]
         await update.message.reply_text(next_q)
     else:
-        # === Все ответы получены, записываем в Google Sheets ===
         promo = get_daily_promocode()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         row = [
-            context.user_data.get("Username"),   # ID / Username
-            timestamp,                           # Дата опроса
-            promo,                               # Промо код
-            context.user_data.get("Имя"),        # Имя
+            context.user_data.get("Username"),
+            timestamp,
+            promo,
+            context.user_data.get("Имя"),
             context.user_data.get("Последний визит"),
             context.user_data.get("Причина визита"),
             context.user_data.get("Впечатление от блюда"),
             context.user_data.get("Оценка атмосферы"),
             context.user_data.get("Ожидания от сервиса"),
             context.user_data.get("Предложение по улучшению"),
-            "", "", "", ""  # Сегмент | Тональность | Гипотеза (меню) | Гипотеза (обслуживание)
+            "", "", "", ""
         ]
 
         sheet.append_row(row)
