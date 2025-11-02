@@ -42,13 +42,13 @@
 ## 🖼 Интерфейс и примеры работы
 
 ### Telegram-бот
-![Диалог с пользователем](assets/bot_chat.png)
+![Диалог с пользователем](assets/Диалог%20с%20пользователем.jpg)
 
 ### Google Sheets — анализ ответов
-![Google Sheets](assets/sheets_view.png)
+![Google Sheets](assets/Google%20Sheets.jpg)
 
 ### Автоматический отчёт AI
-![AI Report](assets/ai_report.png)
+![AI Report](assets/AI%20Report.jpg)
 
 
 
