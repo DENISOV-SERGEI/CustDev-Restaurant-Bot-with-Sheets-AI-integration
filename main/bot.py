@@ -12,11 +12,26 @@ from telegram.ext import (
 
 # === Загрузка переменных окружения ===
 load_dotenv()
+
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 SHEET_URL = os.getenv("SHEET_URL")
 
 # === Настройки Google Sheets ===
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
+
+# Проверяем: есть ли JSON ключ (используется на Render)
+SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+
+if SERVICE_ACCOUNT_JSON:
+    # Render хранит JSON как строку, поэтому нужно распарсить
+    creds = Credentials.from_service_account_info(json.loads(SERVICE_ACCOUNT_JSON), scopes=scope)
+else:
+    # Локальный запуск — используется файл service_account.json
+    SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT", "service_account.json")
+    if not os.path.exists(SERVICE_ACCOUNT_FILE):
+        raise FileNotFoundError("❌ Не найден файл или переменная GOOGLE_SERVICE_ACCOUNT_JSON.")
+    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scope)
+
 
 # Пытаемся загрузить JSON из переменной окружения (для Render / Railway)
 service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
